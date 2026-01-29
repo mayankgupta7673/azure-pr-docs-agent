@@ -21,4 +21,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: gpt-4-docs
+          azure-openai-deployment: gpt-4o

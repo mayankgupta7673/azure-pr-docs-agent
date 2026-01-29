@@ -24,7 +24,7 @@ Enterprise-ready GitHub Action that automatically documents Azure integration ch
 2. **Deploy a model** in Azure OpenAI Studio:
    - Go to **Deployments** → Create new deployment
    - Choose: **GPT-4** or **GPT-3.5-Turbo**
-   - Name it: `gpt-4-docs` (remember this!)
+   - Name it: `gpt-4o` (remember this!)
 3. **Get credentials**:
    - Go to **Keys and Endpoint**
    - Copy **KEY 1** and **Endpoint URL**
@@ -38,7 +38,7 @@ https://<resource-name>.openai.azure.com/openai/deployments/<deployment-name>/ch
 
 Example:
 ```
-https://my-company-openai.openai.azure.com/openai/deployments/gpt-4-docs/chat/completions?api-version=2024-02-15-preview
+https://my-company-openai.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview
 ```
 
 ### 3. Add GitHub Secrets
@@ -77,7 +77,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: gpt-4-docs
+          azure-openai-deployment: gpt-4o
 ```
 
 ### 5. Done! 🎉
@@ -93,7 +93,7 @@ Create a PR with Azure file changes and documentation will be auto-generated.
 | `github-token` | GitHub token (use `secrets.GITHUB_TOKEN`) |
 | `azure-openai-key` | Azure OpenAI API key from Azure Portal |
 | `azure-openai-endpoint` | Full Azure OpenAI endpoint URL |
-| `azure-openai-deployment` | Your deployment name (e.g., `gpt-4-docs`) |
+| `azure-openai-deployment` | Your deployment name (e.g., `gpt-4o`) |
 
 ### Optional Inputs
 
@@ -147,7 +147,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: gpt-4-docs
+          azure-openai-deployment: gpt-4o
           auto-update-pr: true          # Updates existing comments
           create-pr-comment: true        # Shows documentation in PR
           mode: pr
@@ -167,7 +167,7 @@ jobs:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
 ```
 
 ### With PR Title Updates
@@ -180,7 +180,7 @@ Optionally add `[docs updated]` tag to PR titles:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
     auto-update-pr: true
     update-pr-title: true     # Adds [docs updated] to title
 ```
@@ -193,7 +193,7 @@ Optionally add `[docs updated]` tag to PR titles:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
     mode: centralized
     central-doc-file: AZURE_CHANGELOG.md
 ```
@@ -219,7 +219,7 @@ Optionally add `[docs updated]` tag to PR titles:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
     file-patterns: '**/*.bicep,**/infrastructure/**/*.json,**/workflows/**/*.json'
 ```
 
@@ -245,7 +245,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: gpt-4-docs
+          azure-openai-deployment: gpt-4o
 ```
 
 ### Multi-Environment Setup
