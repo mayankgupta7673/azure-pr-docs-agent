@@ -1,6 +1,6 @@
 name: 'Azure Integration Doc Agent'
 description: 'Automatically generates documentation for Azure integration changes using Azure OpenAI'
-author: 'Your Organization'
+author: 'Mayank Gupta'
 branding:
   icon: 'file-text'
   color: 'blue'
@@ -66,6 +66,14 @@ inputs:
     description: 'Skip action if no Azure files changed (true/false)'
     required: false
     default: 'true'
+  auto-update-pr:
+    description: 'Automatically update PR documentation when new commits are pushed (true/false)'
+    required: false
+    default: 'true'
+  update-pr-title:
+    description: 'Add [docs updated] tag to PR title when documentation is regenerated (true/false)'
+    required: false
+    default: 'false'
 
 outputs:
   docs-updated:
@@ -78,6 +86,8 @@ outputs:
     description: 'Whether a PR comment was created (true/false)'
   changes-summary:
     description: 'Summary of changes detected'
+  pr-updated:
+    description: 'Whether the PR was automatically updated (true/false)'
 
 runs:
   using: 'node20'

@@ -14,6 +14,7 @@ Enterprise-ready GitHub Action that automatically documents Azure integration ch
 - 📊 **Flexible** - Per-PR, centralized, or both documentation modes
 - 🔒 **Enterprise Secure** - Keeps data in your Azure tenant
 - 🏢 **Compliance Ready** - Supports HIPAA, SOC 2, and other standards
+- 🔄 **PR Auto-Updater** - Automatically updates documentation when commits are pushed
 
 ## 🚀 Quick Start
 
@@ -117,6 +118,47 @@ Create a PR with Azure file changes and documentation will be auto-generated.
 
 ## 📖 Usage Examples
 
+### PR Auto-Updater (Recommended)
+
+Automatically keeps documentation up-to-date as commits are pushed:
+
+```yaml
+name: PR Auto-Updater
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: mayankgupta7673/azure-integration-doc-agent@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
+          azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          azure-openai-deployment: gpt-4-docs
+          auto-update-pr: true          # Updates existing comments
+          create-pr-comment: true        # Shows documentation in PR
+          mode: pr
+```
+
+**Features:**
+- ✅ Updates same comment instead of creating new ones
+- ✅ Shows timestamp of last update
+- ✅ Prevents infinite loops with `[skip ci]` detection
+- ✅ Adds "🔄 Updated" badge when documentation is refreshed
+
 ### Basic Usage
 
 ```yaml
@@ -126,6 +168,21 @@ Create a PR with Azure file changes and documentation will be auto-generated.
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
     azure-openai-deployment: gpt-4-docs
+```
+
+### With PR Title Updates
+
+Optionally add `[docs updated]` tag to PR titles:
+
+```yaml
+- uses: mayankgupta7673/azure-integration-doc-agent@v1
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
+    azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+    azure-openai-deployment: gpt-4-docs
+    auto-update-pr: true
+    update-pr-title: true     # Adds [docs updated] to title
 ```
 
 ### Centralized Documentation
