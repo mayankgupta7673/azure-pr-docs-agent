@@ -1,10 +1,9 @@
-name: Azure Integration Documentation
+name: Azure Integration Documentation - Complete Example
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches: [main, develop]
+    # Only triggers on PR events - no branch push to avoid constant updates
 
 jobs:
   generate-docs:
@@ -17,14 +16,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref }}
+          ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
       - name: Generate Azure Integration Documentation
         uses: ./
         with:
+          # Required inputs
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           azure-openai-deployment: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+          
+          # Documentation configuration
+          mode: pr                              # Creates per-PR documentation
+          docs-folder: docs/azure               # Stores docs in docs/azure/
+          commit-message: 'docs: auto-generated Azure integration documentation [skip ci]'
+          
+          # File patterns to watch (comma-separated)
+          file-patterns: '**/*.logicapp.json,**/apim-*.xml,**/servicebus-*.json,**/eventhub-*.json,**/function.json,**/bicep/*.bicep,**/terraform/*.tf,**/*azure*.yaml'
+          
+          # Documentation features
+          include-architecture-diagram: true    # Generate Mermaid diagrams
+          include-security-notes: true          # Security considerations
+          include-cost-impact: true             # Cost analysis
+          
+          # PR integration features
+          create-pr-comment: true               # Add comment with doc summary
+          auto-update-pr: true                  # Update comment on new commits
+          update-pr-description: true           # Add summary to PR description
+          update-pr-title: false                # Don't add [docs updated] tag
+          
+          # Behavior settings
+          skip-if-no-changes: true              # Skip if no Azure files changed
+          fail-on-error: false                  # Don't fail workflow on errors
+          max-commits-to-analyze: 5             # Analyze last 5 commits
+
+# This comprehensive workflow demonstrates ALL features:
+# ✅ Auto-generates documentation for Azure integration changes
+# ✅ Creates per-PR documentation files (docs/azure/pr-{number}-azure-integrations.md)
+# ✅ Updates PR description with documentation summary
+# ✅ Creates/updates PR comment with full documentation preview
+# ✅ Includes architecture diagrams, security notes, and cost analysis
+# ✅ Auto-updates on new commits to the PR
+# ✅ Only triggers on PR events (not on every push to branch)
+# ✅ Prevents infinite loops with [skip ci] in commit messages
