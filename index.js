@@ -13,11 +13,11 @@ async function run() {
     // Get and validate inputs
     const config = {
       githubToken: core.getInput('github-token', { required: true }),
-      openaiApiKey: core.getInput('openai-api-key', { required: true }),
-      openaiEndpoint: core.getInput('openai-api-endpoint') || 'https://api.openai.com/v1/chat/completions',
-      openaiModel: core.getInput('openai-model') || 'gpt-4',
+      azureOpenAIKey: core.getInput('azure-openai-key', { required: true }),
+      azureOpenAIEndpoint: core.getInput('azure-openai-endpoint', { required: true }),
+      azureOpenAIDeployment: core.getInput('azure-openai-deployment', { required: true }),
       docsFolder: core.getInput('docs-folder') || 'docs',
-      commitMessage: core.getInput('commit-message') || 'docs: auto-generated Azure integration documentation',
+      commitMessage: core.getInput('commit-message') || 'docs: auto-generated Azure integration documentation [skip ci]',
       filePatterns: (core.getInput('file-patterns') || '').split(',').map(p => p.trim()).filter(p => p),
       mode: core.getInput('mode') || 'pr',
       centralDocFile: core.getInput('central-doc-file') || 'azure-integrations.md',
@@ -29,6 +29,11 @@ async function run() {
       maxCommitsToAnalyze: parseInt(core.getInput('max-commits-to-analyze') || '5'),
       skipIfNoChanges: core.getInput('skip-if-no-changes') === 'true'
     };
+
+    // Validate Azure OpenAI endpoint
+    if (!config.azureOpenAIEndpoint.includes('openai.azure.com')) {
+      throw new Error('Invalid Azure OpenAI endpoint. Must be an Azure OpenAI endpoint (*.openai.azure.com)');
+    }
 
     // Validate mode
     if (!['pr', 'centralized', 'both'].includes(config.mode)) {
@@ -50,6 +55,10 @@ async function run() {
         '**/*azure*.yml'
       ];
     }
+
+    core.info('🔷 Using Azure OpenAI for documentation generation');
+    core.info(`📍 Endpoint: ${config.azureOpenAIEndpoint.split('?')[0]}`);
+    core.info(`🤖 Deployment: ${config.azureOpenAIDeployment}`);
 
     const { context } = github;
     const octokit = github.getOctokit(config.githubToken);
@@ -320,32 +329,17 @@ function extractFileDiffs(files) {
 }
 
 /**
- * Generate documentation using OpenAI-compatible API
+ * Generate documentation using Azure OpenAI
  */
 async function generateDocumentation(fileDiffs, metadata, config) {
   const prompt = buildDocumentationPrompt(fileDiffs, metadata, config);
 
   try {
-    // Determine if using Azure OpenAI based on endpoint
-    const isAzureOpenAI = config.openaiEndpoint.includes('azure.com');
+    core.info('🤖 Calling Azure OpenAI API...');
     
-    // Build headers based on provider
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (isAzureOpenAI) {
-      headers['api-key'] = config.openaiApiKey;
-      core.info('Using Azure OpenAI authentication');
-    } else {
-      headers['Authorization'] = `Bearer ${config.openaiApiKey}`;
-      core.info('Using OpenAI authentication');
-    }
-
     const response = await axios.post(
-      config.openaiEndpoint,
+      config.azureOpenAIEndpoint,
       {
-        model: config.openaiModel,
         messages: [
           {
             role: 'system',
@@ -360,7 +354,10 @@ async function generateDocumentation(fileDiffs, metadata, config) {
         max_tokens: 3000
       },
       {
-        headers: headers,
+        headers: {
+          'api-key': config.azureOpenAIKey,
+          'Content-Type': 'application/json'
+        },
         timeout: 60000
       }
     );
@@ -371,17 +368,17 @@ async function generateDocumentation(fileDiffs, metadata, config) {
 
   } catch (error) {
     if (error.response) {
-      core.error(`API Error: ${error.response.status}`);
+      core.error(`Azure OpenAI API Error: ${error.response.status}`);
       core.debug(JSON.stringify(error.response.data));
       
       if (error.response.status === 401) {
-        throw new Error('Authentication failed. Check your API key.');
+        throw new Error('Azure OpenAI authentication failed. Check your API key in Azure Portal.');
       } else if (error.response.status === 404) {
-        throw new Error('API endpoint not found. Verify your endpoint URL and deployment name.');
+        throw new Error('Azure OpenAI deployment not found. Verify your endpoint URL and deployment name.');
       } else if (error.response.status === 429) {
-        throw new Error('Rate limit exceeded. Try again later.');
+        throw new Error('Azure OpenAI rate limit exceeded. Check your quota in Azure Portal.');
       } else {
-        throw new Error(`API request failed with status ${error.response.status}`);
+        throw new Error(`Azure OpenAI API request failed with status ${error.response.status}`);
       }
     }
     throw new Error(`Failed to generate documentation: ${error.message}`);

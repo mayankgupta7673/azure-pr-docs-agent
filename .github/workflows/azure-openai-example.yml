@@ -1,4 +1,4 @@
-name: Azure Docs (Azure OpenAI)
+name: Azure Docs with Cost Optimization
 
 on:
   pull_request:
@@ -21,33 +21,30 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
-      - name: Generate Documentation with Azure OpenAI
-        uses: mayankgupta7673/azure-integration-doc-agent@v1
+      - name: Set deployment based on environment
+        id: config
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "deployment=gpt-4-prod" >> $GITHUB_OUTPUT
+          else
+            echo "deployment=gpt-35-turbo-dev" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Generate Documentation
+        uses: ./
         with:
-          # GitHub configuration
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          
-          # Azure OpenAI configuration
-          # Get these from: Azure Portal → Your OpenAI Resource → Keys and Endpoint
-          openai-api-key: ${{ secrets.AZURE_OPENAI_KEY }}
-          openai-api-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          
-          # This should be your DEPLOYMENT NAME, not the model name
-          # Find it in: Azure OpenAI Studio → Deployments
-          openai-model: gpt-4o
-          
-          # Documentation settings
+          azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
+          azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          azure-openai-deployment: ${{ steps.config.outputs.deployment }}
           mode: both
           docs-folder: docs/azure
-          
-          # Optional: Enable all features
           include-architecture-diagram: true
           include-security-notes: true
           include-cost-impact: true
           create-pr-comment: true
 
-# Example Azure OpenAI Endpoint format:
-# https://<resource-name>.openai.azure.com/openai/deployments/<deployment-name>/chat/completions?api-version=2024-02-15-preview
-#
-# Full example:
-# https://my-company-openai.openai.azure.com/openai/deployments/gpt-4-docs/chat/completions?api-version=2024-02-15-preview
+# This workflow demonstrates:
+# - Using GPT-4 for production (main branch)
+# - Using GPT-3.5-Turbo for development (other branches) - 95% cheaper!
+# - All advanced features enabled

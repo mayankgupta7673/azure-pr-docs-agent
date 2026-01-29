@@ -1,5 +1,5 @@
 name: 'Azure Integration Doc Agent'
-description: 'Automatically generates documentation for Azure integration changes in pull requests and commits'
+description: 'Automatically generates documentation for Azure integration changes using Azure OpenAI'
 author: 'Your Organization'
 branding:
   icon: 'file-text'
@@ -9,29 +9,15 @@ inputs:
   github-token:
     description: 'GitHub token for API access (use secrets.GITHUB_TOKEN)'
     required: true
-  openai-api-key:
-    description: |
-      API key for AI model access:
-      - For OpenAI: Your OpenAI API key from platform.openai.com
-      - For Azure OpenAI: Your Azure OpenAI API key from Azure Portal
-      - For other providers: Your API key for the compatible endpoint
+  azure-openai-key:
+    description: 'Azure OpenAI API key from Azure Portal'
     required: true
-  openai-api-endpoint:
-    description: |
-      API endpoint URL:
-      - OpenAI (default): https://api.openai.com/v1/chat/completions
-      - Azure OpenAI: https://<your-resource>.openai.azure.com/openai/deployments/<deployment-name>/chat/completions?api-version=2024-02-15-preview
-      - Other providers: Your custom endpoint
-    required: false
-    default: 'https://api.openai.com/v1/chat/completions'
-  openai-model:
-    description: |
-      Model name to use:
-      - For OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
-      - For Azure OpenAI: Your deployment name (e.g., gpt-4, gpt-35-turbo)
-      - Note: Azure OpenAI uses deployment names, not model names
-    required: false
-    default: 'gpt-4'
+  azure-openai-endpoint:
+    description: 'Azure OpenAI endpoint URL (format: https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-15-preview)'
+    required: true
+  azure-openai-deployment:
+    description: 'Azure OpenAI deployment name (e.g., gpt-4, gpt-35-turbo)'
+    required: true
   docs-folder:
     description: 'Folder where documentation should be stored'
     required: false
@@ -39,13 +25,13 @@ inputs:
   commit-message:
     description: 'Commit message for documentation updates'
     required: false
-    default: 'docs: auto-generated Azure integration documentation'
+    default: 'docs: auto-generated Azure integration documentation [skip ci]'
   file-patterns:
     description: 'Comma-separated list of file patterns to watch (supports wildcards)'
     required: false
     default: '**/*.logicapp.json,**/apim-policy.xml,**/apim-*.xml,**/servicebus-*.json,**/eventhub-*.json,**/function.json,**/bicep/*.bicep,**/terraform/*.tf,**/*azure*.yaml,**/*azure*.yml'
   mode:
-    description: 'Documentation mode: pr (per-PR docs), centralized (single file), both, commit (for push events)'
+    description: 'Documentation mode: pr (per-PR docs), centralized (single file), both'
     required: false
     default: 'pr'
   central-doc-file:
