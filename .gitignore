@@ -34,6 +34,3 @@ coverage/
 tmp/
 temp/
 *.tmp
-
-# Build output (if using ncc for distribution)
-dist/
