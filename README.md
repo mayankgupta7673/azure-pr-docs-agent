@@ -36,11 +36,6 @@ Format:
 https://<resource-name>.openai.azure.com/openai/deployments/<deployment-name>/chat/completions?api-version=2024-02-15-preview
 ```
 
-Example:
-```
-https://my-company-openai.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview
-```
-
 ### 3. Add GitHub Secrets
 
 Repository → **Settings** → **Secrets and variables** → **Actions**:
@@ -368,5 +363,3 @@ MIT License - see [LICENSE](LICENSE)
 - [Report Issues](https://github.com/mayankgupta7673/azure-integration-doc-agent/issues)
 
 ---
-
-Made with 🔷 for Azure teams

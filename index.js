@@ -463,8 +463,22 @@ async function generateDocumentation(fileDiffs, metadata, config) {
     core.info(`Endpoint: ${config.azureOpenAIEndpoint.split('?')[0]}`);
     core.info(`Deployment: ${config.azureOpenAIDeployment}`);
     
+    // Build the full Azure OpenAI endpoint URL with deployment and API version
+    const apiVersion = '2024-02-15-preview';
+    let fullEndpoint = config.azureOpenAIEndpoint;
+    
+    // Check if endpoint already includes the full path or just the base URL
+    if (!fullEndpoint.includes('/openai/deployments/')) {
+      // Remove trailing slash if present
+      fullEndpoint = fullEndpoint.replace(/\/$/, '');
+      // Build the complete endpoint
+      fullEndpoint = `${fullEndpoint}/openai/deployments/${config.azureOpenAIDeployment}/chat/completions?api-version=${apiVersion}`;
+    }
+    
+    core.debug(`Full API URL: ${fullEndpoint}`);
+    
     const response = await axios.post(
-      config.azureOpenAIEndpoint,
+      fullEndpoint,
       {
         messages: [
           {
@@ -484,7 +498,10 @@ async function generateDocumentation(fileDiffs, metadata, config) {
           'api-key': config.azureOpenAIKey,
           'Content-Type': 'application/json'
         },
-        timeout: 60000
+        timeout: 60000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 600; // Don't throw on any status
+        }
       }
     );
 
@@ -492,29 +509,60 @@ async function generateDocumentation(fileDiffs, metadata, config) {
     core.debug(`Response status: ${response.status}`);
     core.debug(`Response data keys: ${Object.keys(response.data || {}).join(', ')}`);
     
+    // Check for HTTP errors first
+    if (response.status >= 400) {
+      core.error(`Azure OpenAI API Error: ${response.status} ${response.statusText}`);
+      core.error(`Response data: ${JSON.stringify(response.data, null, 2)}`);
+      
+      if (response.status === 401) {
+        throw new Error('Azure OpenAI authentication failed. Check your API key in Azure Portal.');
+      } else if (response.status === 404) {
+        throw new Error('Azure OpenAI deployment not found. Verify your endpoint URL and deployment name. Expected format: https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-15-preview');
+      } else if (response.status === 429) {
+        throw new Error('Azure OpenAI rate limit exceeded. Check your quota in Azure Portal.');
+      } else if (response.status === 400) {
+        const errorMsg = response.data?.error?.message || 'Bad request';
+        throw new Error(`Azure OpenAI bad request: ${errorMsg}`);
+      } else {
+        throw new Error(`Azure OpenAI API request failed with status ${response.status}: ${JSON.stringify(response.data)}`);
+      }
+    }
+    
     // Validate response structure
     if (!response.data) {
-      throw new Error('Azure OpenAI returned empty response data');
+      core.error('Response object structure:');
+      core.error(`- status: ${response.status}`);
+      core.error(`- statusText: ${response.statusText}`);
+      core.error(`- headers: ${JSON.stringify(response.headers)}`);
+      throw new Error('Azure OpenAI returned empty response data. The API may be returning an unexpected format.');
     }
     
     if (!response.data.choices || !Array.isArray(response.data.choices)) {
       core.error('Unexpected response structure from Azure OpenAI');
-      core.error(`Response: ${JSON.stringify(response.data, null, 2)}`);
-      throw new Error('Azure OpenAI response missing "choices" array. Check your endpoint URL format.');
+      core.error(`Response keys: ${Object.keys(response.data).join(', ')}`);
+      core.error(`Full response: ${JSON.stringify(response.data, null, 2)}`);
+      throw new Error('Azure OpenAI response missing "choices" array. Check your endpoint URL format and API version.');
     }
     
     if (response.data.choices.length === 0) {
-      throw new Error('Azure OpenAI returned empty choices array');
+      core.error(`Response data: ${JSON.stringify(response.data, null, 2)}`);
+      throw new Error('Azure OpenAI returned empty choices array. The model may have filtered the content or encountered an error.');
     }
     
     if (!response.data.choices[0].message || !response.data.choices[0].message.content) {
       core.error(`Choice structure: ${JSON.stringify(response.data.choices[0], null, 2)}`);
-      throw new Error('Azure OpenAI response missing message content');
+      throw new Error('Azure OpenAI response missing message content. The response may have been filtered or is incomplete.');
     }
 
     const generatedText = response.data.choices[0].message.content;
     core.info('✨ Documentation generated successfully');
     core.info(`Generated ${generatedText.length} characters of documentation`);
+    
+    // Log token usage if available
+    if (response.data.usage) {
+      core.info(`Token usage: ${response.data.usage.prompt_tokens} prompt + ${response.data.usage.completion_tokens} completion = ${response.data.usage.total_tokens} total`);
+    }
+    
     return generatedText;
 
   } catch (error) {
@@ -533,12 +581,14 @@ async function generateDocumentation(fileDiffs, metadata, config) {
         const errorMsg = error.response.data?.error?.message || 'Bad request';
         throw new Error(`Azure OpenAI bad request: ${errorMsg}`);
       } else {
-        throw new Error(`Azure OpenAI API request failed with status ${error.response.status}: ${JSON.stringify(error.response.data)}`);
+        throw new Error(`Azure OpenAI API request failed with status ${error.response.status}: ${JSON.stringify(response.data)}`);
       }
     } else if (error.code === 'ECONNABORTED') {
       throw new Error('Azure OpenAI request timeout. The API took longer than 60 seconds to respond.');
     } else if (error.code === 'ENOTFOUND') {
       throw new Error('Azure OpenAI endpoint not found. Check your endpoint URL.');
+    } else if (error.code === 'ECONNREFUSED') {
+      throw new Error('Connection refused to Azure OpenAI endpoint. Check your network and endpoint URL.');
     }
     
     throw new Error(`Failed to generate documentation: ${error.message}`);
