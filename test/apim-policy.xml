@@ -1,0 +1,183 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Rate limiting for security -->
+        <rate-limit-by-key calls="100" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+        
+        <!-- CORS policy for frontend applications -->
+        <cors allow-credentials="true">
+            <allowed-origins>
+                <origin>https://app.contoso.com</origin>
+                <origin>https://portal.contoso.com</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>PUT</method>
+                <method>DELETE</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+        
+        <!-- JWT validation for authentication -->
+        <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. Access token is missing or invalid.">
+            <openid-config url="https://login.microsoftonline.com/contoso.onmicrosoft.com/v2.0/.well-known/openid-configuration" />
+            <audiences>
+                <audience>api://order-processing-api</audience>
+            </audiences>
+            <issuers>
+                <issuer>https://sts.windows.net/{tenant-id}/</issuer>
+            </issuers>
+            <required-claims>
+                <claim name="roles" match="any">
+                    <value>OrderProcessor</value>
+                    <value>Administrator</value>
+                </claim>
+            </required-claims>
+        </validate-jwt>
+        
+        <!-- Check for API key as fallback authentication -->
+        <choose>
+            <when condition="@(!context.Request.Headers.ContainsKey("Authorization"))">
+                <check-header name="X-API-Key" failed-check-httpcode="401" failed-check-error-message="API Key is missing" ignore-case="true" />
+                <set-variable name="apiKeyValid" value="@{
+                    var apiKey = context.Request.Headers.GetValueOrDefault("X-API-Key", "");
+                    var validKeys = context.Api.Subscriptions.Select(s => s.PrimaryKey).Concat(context.Api.Subscriptions.Select(s => s.SecondaryKey));
+                    return validKeys.Contains(apiKey);
+                }" />
+                <choose>
+                    <when condition="@(!((bool)context.Variables["apiKeyValid"]))">
+                        <return-response>
+                            <set-status code="401" reason="Unauthorized" />
+                            <set-header name="WWW-Authenticate" exists-action="override">
+                                <value>ApiKey</value>
+                            </set-header>
+                            <set-body>{"error": "Invalid API Key"}</set-body>
+                        </return-response>
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        
+        <!-- Request validation -->
+        <validate-content unspecified-content-type-action="prevent" max-size="102400" size-exceeded-action="prevent" errors-variable-name="validationErrors">
+            <content type="application/json" validate-as="json" action="prevent" />
+        </validate-content>
+        
+        <!-- Set backend URL based on environment -->
+        <set-variable name="backendUrl" value="@{
+            var env = context.Deployment.Region;
+            return env.Contains("east") ? "https://backend-eastus.contoso.com" : "https://backend-westus.contoso.com";
+        }" />
+        
+        <!-- Add correlation ID for tracing -->
+        <set-variable name="correlationId" value="@(context.RequestId.ToString())" />
+        <set-header name="X-Correlation-ID" exists-action="override">
+            <value>@((string)context.Variables["correlationId"])</value>
+        </set-header>
+        
+        <!-- IP filtering for additional security -->
+        <ip-filter action="allow">
+            <address-range from="10.0.0.0" to="10.255.255.255" />
+            <address-range from="172.16.0.0" to="172.31.255.255" />
+            <address>40.112.0.0/16</address>
+        </ip-filter>
+        
+        <!-- Request throttling per subscription -->
+        <quota-by-key calls="10000" renewal-period="86400" counter-key="@(context.Subscription.Id)" />
+        
+        <!-- Cache lookup for GET requests -->
+        <cache-lookup vary-by-developer="false" vary-by-developer-groups="false" downstream-caching-type="none">
+            <vary-by-header>Accept</vary-by-header>
+            <vary-by-header>Accept-Charset</vary-by-header>
+        </cache-lookup>
+    </inbound>
+    <backend>
+        <base />
+        <!-- Retry policy for transient failures -->
+        <retry condition="@(context.Response.StatusCode >= 500)" count="3" interval="2" max-interval="10" delta="1" first-fast-retry="true">
+            <forward-request timeout="30" follow-redirects="true" />
+        </retry>
+    </backend>
+    <outbound>
+        <base />
+        <!-- Remove sensitive headers -->
+        <set-header name="X-Powered-By" exists-action="delete" />
+        <set-header name="X-AspNet-Version" exists-action="delete" />
+        
+        <!-- Add security headers -->
+        <set-header name="X-Content-Type-Options" exists-action="override">
+            <value>nosniff</value>
+        </set-header>
+        <set-header name="X-Frame-Options" exists-action="override">
+            <value>DENY</value>
+        </set-header>
+        <set-header name="Strict-Transport-Security" exists-action="override">
+            <value>max-age=31536000; includeSubDomains</value>
+        </set-header>
+        
+        <!-- Response transformation -->
+        <choose>
+            <when condition="@(context.Response.StatusCode == 200)">
+                <set-body>@{
+                    var response = context.Response.Body.As<JObject>();
+                    response["metadata"] = new JObject(
+                        new JProperty("timestamp", DateTime.UtcNow),
+                        new JProperty("correlationId", context.Variables["correlationId"]),
+                        new JProperty("region", context.Deployment.Region)
+                    );
+                    return response.ToString();
+                }</set-body>
+            </when>
+        </choose>
+        
+        <!-- Cache store for successful GET requests -->
+        <cache-store duration="300" />
+        
+        <!-- Log to Application Insights -->
+        <log-to-eventhub logger-id="order-processing-logger">@{
+            return new JObject(
+                new JProperty("correlationId", context.Variables["correlationId"]),
+                new JProperty("method", context.Request.Method),
+                new JProperty("url", context.Request.Url.ToString()),
+                new JProperty("statusCode", context.Response.StatusCode),
+                new JProperty("duration", context.Elapsed.TotalMilliseconds),
+                new JProperty("timestamp", DateTime.UtcNow)
+            ).ToString();
+        }</log-to-eventhub>
+    </outbound>
+    <on-error>
+        <base />
+        <!-- Error handling and logging -->
+        <set-variable name="errorDetails" value="@{
+            return new JObject(
+                new JProperty("correlationId", context.Variables["correlationId"]),
+                new JProperty("error", context.LastError.Message),
+                new JProperty("source", context.LastError.Source),
+                new JProperty("timestamp", DateTime.UtcNow)
+            ).ToString();
+        }" />
+        
+        <log-to-eventhub logger-id="error-logger">@((string)context.Variables["errorDetails"])</log-to-eventhub>
+        
+        <!-- Return standardized error response -->
+        <return-response>
+            <set-status code="500" reason="Internal Server Error" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-body>@{
+                return new JObject(
+                    new JProperty("error", new JObject(
+                        new JProperty("code", "InternalServerError"),
+                        new JProperty("message", "An error occurred processing your request"),
+                        new JProperty("correlationId", context.Variables["correlationId"]),
+                        new JProperty("timestamp", DateTime.UtcNow)
+                    ))
+                ).ToString();
+            }</set-body>
+        </return-response>
+    </on-error>
+</policies>

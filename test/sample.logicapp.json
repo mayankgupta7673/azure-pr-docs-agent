@@ -1,29 +1,291 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2016-06-01/Microsoft.Logic.json",
   "contentVersion": "1.0.0.0",
-  "parameters": {},
+  "parameters": {
+    "$connections": {
+      "defaultValue": {},
+      "type": "Object"
+    },
+    "serviceBusConnectionString": {
+      "type": "securestring"
+    },
+    "cosmosDbEndpoint": {
+      "type": "string"
+    },
+    "storageAccountKey": {
+      "type": "securestring"
+    }
+  },
   "triggers": {
-    "manual": {
+    "When_a_HTTP_request_is_received": {
       "type": "Request",
       "kind": "Http",
       "inputs": {
-        "schema": {}
+        "schema": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "type": "string"
+            },
+            "customerId": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer"
+                  },
+                  "price": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          },
+          "required": ["orderId", "customerId", "amount"]
+        }
       }
     }
   },
   "actions": {
-    "Send_Email": {
+    "Validate_Customer": {
       "type": "ApiConnection",
       "inputs": {
         "host": {
           "connection": {
-            "name": "@parameters('$connections')['office365']['connectionId']"
+            "name": "@parameters('$connections')['azuretables']['connectionId']"
+          }
+        },
+        "method": "get",
+        "path": "/Tables/@{encodeURIComponent('Customers')}/entities(PartitionKey='@{encodeURIComponent(triggerBody()?['customerId'])}',RowKey='@{encodeURIComponent('profile')}')"
+      },
+      "runAfter": {}
+    },
+    "Check_Fraud_Score": {
+      "type": "Http",
+      "inputs": {
+        "method": "POST",
+        "uri": "https://fraud-detection-api.azurewebsites.net/api/check",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer @{parameters('fraudApiKey')}"
+        },
+        "body": {
+          "customerId": "@triggerBody()?['customerId']",
+          "amount": "@triggerBody()?['amount']",
+          "ipAddress": "@triggerOutputs()?['headers']?['X-Forwarded-For']"
+        }
+      },
+      "runAfter": {
+        "Validate_Customer": ["Succeeded"]
+      }
+    },
+    "Condition_Check_Fraud_Result": {
+      "type": "If",
+      "expression": {
+        "and": [
+          {
+            "greater": [
+              "@body('Check_Fraud_Score')?['score']",
+              0.7
+            ]
+          }
+        ]
+      },
+      "actions": {
+        "Send_to_Manual_Review_Queue": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connection": {
+                "name": "@parameters('$connections')['servicebus']['connectionId']"
+              }
+            },
+            "method": "post",
+            "path": "/@{encodeURIComponent('manual-review-queue')}/messages",
+            "body": {
+              "ContentData": "@{base64(string(triggerBody()))}",
+              "Properties": {
+                "priority": "high",
+                "fraudScore": "@{body('Check_Fraud_Score')?['score']}",
+                "reason": "Fraud score above threshold"
+              }
+            }
+          }
+        },
+        "Log_Suspicious_Activity": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connection": {
+                "name": "@parameters('$connections')['azureloganalytics']['connectionId']"
+              }
+            },
+            "method": "post",
+            "path": "/api/logs",
+            "body": {
+              "orderId": "@triggerBody()?['orderId']",
+              "customerId": "@triggerBody()?['customerId']",
+              "fraudScore": "@body('Check_Fraud_Score')?['score']",
+              "timestamp": "@utcNow()",
+              "severity": "Warning"
+            }
+          },
+          "runAfter": {
+            "Send_to_Manual_Review_Queue": ["Succeeded"]
+          }
+        }
+      },
+      "else": {
+        "actions": {
+          "Process_Order": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['servicebus']['connectionId']"
+                }
+              },
+              "method": "post",
+              "path": "/@{encodeURIComponent('order-processing-queue')}/messages",
+              "body": {
+                "ContentData": "@{base64(string(triggerBody()))}",
+                "Properties": {
+                  "priority": "normal",
+                  "processingType": "automatic"
+                }
+              }
+            }
+          },
+          "Store_Order_in_CosmosDB": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['documentdb']['connectionId']"
+                }
+              },
+              "method": "post",
+              "path": "/dbs/@{encodeURIComponent('OrdersDB')}/colls/@{encodeURIComponent('Orders')}/docs",
+              "body": {
+                "id": "@triggerBody()?['orderId']",
+                "customerId": "@triggerBody()?['customerId']",
+                "amount": "@triggerBody()?['amount']",
+                "items": "@triggerBody()?['items']",
+                "status": "processing",
+                "createdAt": "@utcNow()",
+                "fraudScore": "@body('Check_Fraud_Score')?['score']",
+                "customerName": "@body('Validate_Customer')?['customerName']"
+              }
+            },
+            "runAfter": {
+              "Process_Order": ["Succeeded"]
+            }
+          },
+          "Send_Confirmation_Email": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['office365']['connectionId']"
+                }
+              },
+              "method": "post",
+              "path": "/v2/Mail",
+              "body": {
+                "To": "@body('Validate_Customer')?['email']",
+                "Subject": "Order Confirmation - @{triggerBody()?['orderId']}",
+                "Body": "<h1>Thank you for your order!</h1><p>Order ID: @{triggerBody()?['orderId']}</p><p>Total: $@{triggerBody()?['amount']}</p>",
+                "Importance": "Normal"
+              }
+            },
+            "runAfter": {
+              "Store_Order_in_CosmosDB": ["Succeeded"]
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Check_Fraud_Score": ["Succeeded"]
+      }
+    },
+    "Store_Metrics_in_Blob": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
           }
         },
         "method": "post",
-        "path": "/v2/Mail"
+        "path": "/v2/datasets/@{encodeURIComponent('AccountNameFromSettings')}/files",
+        "queries": {
+          "folderPath": "/metrics",
+          "name": "order-@{triggerBody()?['orderId']}-@{formatDateTime(utcNow(), 'yyyy-MM-dd-HHmmss')}.json"
+        },
+        "body": {
+          "orderId": "@triggerBody()?['orderId']",
+          "processingTime": "@{div(ticks(utcNow()), 10000000)}",
+          "fraudCheckResult": "@body('Check_Fraud_Score')?['score']",
+          "outcome": "@if(greater(body('Check_Fraud_Score')?['score'], 0.7), 'manual-review', 'auto-processed')"
+        }
+      },
+      "runAfter": {
+        "Condition_Check_Fraud_Result": ["Succeeded"]
+      }
+    },
+    "Publish_Event_to_EventGrid": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureeventgrid']['connectionId']"
+          }
+        },
+        "method": "post",
+        "path": "/eventGrid/api/events",
+        "body": [
+          {
+            "id": "@guid()",
+            "eventType": "Orders.OrderProcessed",
+            "subject": "orders/@{triggerBody()?['orderId']}",
+            "eventTime": "@utcNow()",
+            "data": {
+              "orderId": "@triggerBody()?['orderId']",
+              "customerId": "@triggerBody()?['customerId']",
+              "amount": "@triggerBody()?['amount']",
+              "status": "@if(greater(body('Check_Fraud_Score')?['score'], 0.7), 'review', 'processed')"
+            },
+            "dataVersion": "1.0"
+          }
+        ]
+      },
+      "runAfter": {
+        "Store_Metrics_in_Blob": ["Succeeded"]
       }
     }
   },
-  "outputs": {}
+  "outputs": {
+    "orderId": {
+      "type": "string",
+      "value": "@triggerBody()?['orderId']"
+    },
+    "status": {
+      "type": "string",
+      "value": "@if(greater(body('Check_Fraud_Score')?['score'], 0.7), 'manual-review', 'processed')"
+    },
+    "fraudScore": {
+      "type": "number",
+      "value": "@body('Check_Fraud_Score')?['score']"
+    }
+  }
 }
