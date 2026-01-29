@@ -74,6 +74,10 @@ inputs:
     description: 'Add [docs updated] tag to PR title when documentation is regenerated (true/false)'
     required: false
     default: 'false'
+  update-pr-description:
+    description: 'Update PR description with documentation summary (true/false)'
+    required: false
+    default: 'false'
 
 outputs:
   docs-updated:
