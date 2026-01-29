@@ -43120,6 +43120,8 @@ async function generateDocumentation(fileDiffs, metadata, config) {
 
   try {
     core.info('🤖 Calling Azure OpenAI API...');
+    core.info(`Endpoint: ${config.azureOpenAIEndpoint.split('?')[0]}`);
+    core.info(`Deployment: ${config.azureOpenAIDeployment}`);
     
     const response = await axios.post(
       config.azureOpenAIEndpoint,
@@ -43146,25 +43148,59 @@ async function generateDocumentation(fileDiffs, metadata, config) {
       }
     );
 
+    // Log response structure for debugging
+    core.debug(`Response status: ${response.status}`);
+    core.debug(`Response data keys: ${Object.keys(response.data || {}).join(', ')}`);
+    
+    // Validate response structure
+    if (!response.data) {
+      throw new Error('Azure OpenAI returned empty response data');
+    }
+    
+    if (!response.data.choices || !Array.isArray(response.data.choices)) {
+      core.error('Unexpected response structure from Azure OpenAI');
+      core.error(`Response: ${JSON.stringify(response.data, null, 2)}`);
+      throw new Error('Azure OpenAI response missing "choices" array. Check your endpoint URL format.');
+    }
+    
+    if (response.data.choices.length === 0) {
+      throw new Error('Azure OpenAI returned empty choices array');
+    }
+    
+    if (!response.data.choices[0].message || !response.data.choices[0].message.content) {
+      core.error(`Choice structure: ${JSON.stringify(response.data.choices[0], null, 2)}`);
+      throw new Error('Azure OpenAI response missing message content');
+    }
+
     const generatedText = response.data.choices[0].message.content;
     core.info('✨ Documentation generated successfully');
+    core.info(`Generated ${generatedText.length} characters of documentation`);
     return generatedText;
 
   } catch (error) {
     if (error.response) {
-      core.error(`Azure OpenAI API Error: ${error.response.status}`);
-      core.debug(JSON.stringify(error.response.data));
+      core.error(`Azure OpenAI API Error: ${error.response.status} ${error.response.statusText}`);
+      core.error(`Response headers: ${JSON.stringify(error.response.headers, null, 2)}`);
+      core.error(`Response data: ${JSON.stringify(error.response.data, null, 2)}`);
       
       if (error.response.status === 401) {
         throw new Error('Azure OpenAI authentication failed. Check your API key in Azure Portal.');
       } else if (error.response.status === 404) {
-        throw new Error('Azure OpenAI deployment not found. Verify your endpoint URL and deployment name.');
+        throw new Error('Azure OpenAI deployment not found. Verify your endpoint URL and deployment name. Expected format: https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-15-preview');
       } else if (error.response.status === 429) {
         throw new Error('Azure OpenAI rate limit exceeded. Check your quota in Azure Portal.');
+      } else if (error.response.status === 400) {
+        const errorMsg = error.response.data?.error?.message || 'Bad request';
+        throw new Error(`Azure OpenAI bad request: ${errorMsg}`);
       } else {
-        throw new Error(`Azure OpenAI API request failed with status ${error.response.status}`);
+        throw new Error(`Azure OpenAI API request failed with status ${error.response.status}: ${JSON.stringify(error.response.data)}`);
       }
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error('Azure OpenAI request timeout. The API took longer than 60 seconds to respond.');
+    } else if (error.code === 'ENOTFOUND') {
+      throw new Error('Azure OpenAI endpoint not found. Check your endpoint URL.');
     }
+    
     throw new Error(`Failed to generate documentation: ${error.message}`);
   }
 }
