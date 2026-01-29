@@ -22,7 +22,7 @@ jobs:
           fetch-depth: 0
       
       - name: Generate Documentation with Azure OpenAI
-        uses: your-org/azure-integration-doc-agent@v1
+        uses: mayankgupta7673/azure-integration-doc-agent@v1
         with:
           # GitHub configuration
           github-token: ${{ secrets.GITHUB_TOKEN }}

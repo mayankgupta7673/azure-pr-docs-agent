@@ -41,7 +41,7 @@ jobs:
           ref: ${{ github.head_ref || github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - uses: your-org/azure-integration-doc-agent@v1
+      - uses: mayankgupta7673/azure-integration-doc-agent@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -89,7 +89,7 @@ Create a PR with Azure changes and watch the magic happen.
 ### Basic (OpenAI)
 
 ```yaml
-- uses: your-org/azure-integration-doc-agent@v1
+- uses: mayankgupta7673/azure-integration-doc-agent@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -98,7 +98,7 @@ Create a PR with Azure changes and watch the magic happen.
 ### Azure OpenAI
 
 ```yaml
-- uses: your-org/azure-integration-doc-agent@v1
+- uses: mayankgupta7673/azure-integration-doc-agent@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     openai-api-key: ${{ secrets.AZURE_OPENAI_KEY }}
@@ -109,7 +109,7 @@ Create a PR with Azure changes and watch the magic happen.
 ### Centralized Documentation
 
 ```yaml
-- uses: your-org/azure-integration-doc-agent@v1
+- uses: mayankgupta7673/azure-integration-doc-agent@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -120,7 +120,7 @@ Create a PR with Azure changes and watch the magic happen.
 ### Custom File Patterns
 
 ```yaml
-- uses: your-org/azure-integration-doc-agent@v1
+- uses: mayankgupta7673/azure-integration-doc-agent@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -143,7 +143,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: your-org/azure-integration-doc-agent@v1
+      - uses: mayankgupta7673/azure-integration-doc-agent@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -211,8 +211,8 @@ MIT License - see [LICENSE](LICENSE)
 ## 🔗 Resources
 
 - [Azure OpenAI Setup Guide](AZURE_OPENAI_SETUP.md)
-- [Report Issues](https://github.com/your-org/azure-integration-doc-agent/issues)
-- [Discussions](https://github.com/your-org/azure-integration-doc-agent/discussions)
+- [Report Issues](https://github.com/mayankgupta7673/azure-integration-doc-agent/issues)
+- [Discussions](https://github.com/mayankgupta7673/azure-integration-doc-agent/discussions)
 
 ---
 
