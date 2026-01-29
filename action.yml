@@ -1,0 +1,98 @@
+name: 'Azure Integration Doc Agent'
+description: 'Automatically generates documentation for Azure integration changes in pull requests and commits'
+author: 'Your Organization'
+branding:
+  icon: 'file-text'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access (use secrets.GITHUB_TOKEN)'
+    required: true
+  openai-api-key:
+    description: |
+      API key for AI model access:
+      - For OpenAI: Your OpenAI API key from platform.openai.com
+      - For Azure OpenAI: Your Azure OpenAI API key from Azure Portal
+      - For other providers: Your API key for the compatible endpoint
+    required: true
+  openai-api-endpoint:
+    description: |
+      API endpoint URL:
+      - OpenAI (default): https://api.openai.com/v1/chat/completions
+      - Azure OpenAI: https://<your-resource>.openai.azure.com/openai/deployments/<deployment-name>/chat/completions?api-version=2024-02-15-preview
+      - Other providers: Your custom endpoint
+    required: false
+    default: 'https://api.openai.com/v1/chat/completions'
+  openai-model:
+    description: |
+      Model name to use:
+      - For OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
+      - For Azure OpenAI: Your deployment name (e.g., gpt-4, gpt-35-turbo)
+      - Note: Azure OpenAI uses deployment names, not model names
+    required: false
+    default: 'gpt-4'
+  docs-folder:
+    description: 'Folder where documentation should be stored'
+    required: false
+    default: 'docs'
+  commit-message:
+    description: 'Commit message for documentation updates'
+    required: false
+    default: 'docs: auto-generated Azure integration documentation'
+  file-patterns:
+    description: 'Comma-separated list of file patterns to watch (supports wildcards)'
+    required: false
+    default: '**/*.logicapp.json,**/apim-policy.xml,**/apim-*.xml,**/servicebus-*.json,**/eventhub-*.json,**/function.json,**/bicep/*.bicep,**/terraform/*.tf,**/*azure*.yaml,**/*azure*.yml'
+  mode:
+    description: 'Documentation mode: pr (per-PR docs), centralized (single file), both, commit (for push events)'
+    required: false
+    default: 'pr'
+  central-doc-file:
+    description: 'Filename for centralized documentation (used in centralized/both modes)'
+    required: false
+    default: 'azure-integrations.md'
+  include-architecture-diagram:
+    description: 'Generate mermaid architecture diagram suggestions (true/false)'
+    required: false
+    default: 'true'
+  include-security-notes:
+    description: 'Include security considerations in documentation (true/false)'
+    required: false
+    default: 'true'
+  include-cost-impact:
+    description: 'Include cost impact analysis in documentation (true/false)'
+    required: false
+    default: 'true'
+  create-pr-comment:
+    description: 'Create a comment on PR with documentation summary (true/false)'
+    required: false
+    default: 'true'
+  fail-on-error:
+    description: 'Fail the workflow if documentation generation fails (true/false)'
+    required: false
+    default: 'false'
+  max-commits-to-analyze:
+    description: 'Maximum number of commits to analyze in commit mode (for push events)'
+    required: false
+    default: '5'
+  skip-if-no-changes:
+    description: 'Skip action if no Azure files changed (true/false)'
+    required: false
+    default: 'true'
+
+outputs:
+  docs-updated:
+    description: 'Whether documentation was updated (true/false)'
+  files-processed:
+    description: 'Number of Azure integration files processed'
+  documentation-path:
+    description: 'Path to the generated/updated documentation'
+  pr-comment-created:
+    description: 'Whether a PR comment was created (true/false)'
+  changes-summary:
+    description: 'Summary of changes detected'
+
+runs:
+  using: 'node20'
+  main: 'index.js'

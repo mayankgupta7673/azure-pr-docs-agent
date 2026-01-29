@@ -1,0 +1,34 @@
+{
+  "name": "azure-integration-doc-agent",
+  "version": "1.0.0",
+  "description": "GitHub Action to automatically generate documentation for Azure integration changes",
+  "main": "index.js",
+  "scripts": {
+    "lint": "node --check index.js",
+    "test": "node --test || echo 'Tests will be added in future versions' && exit 0"
+  },
+  "keywords": [
+    "github-actions",
+    "azure",
+    "documentation",
+    "automation",
+    "logic-apps",
+    "apim",
+    "service-bus"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/azure-integration-doc-agent.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "axios": "^1.7.9",
+    "minimatch": "^10.0.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
