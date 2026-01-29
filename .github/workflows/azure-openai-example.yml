@@ -21,22 +21,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
-      - name: Set deployment based on environment
-        id: config
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "deployment=gpt-4-prod" >> $GITHUB_OUTPUT
-          else
-            echo "deployment=gpt-35-turbo-dev" >> $GITHUB_OUTPUT
-          fi
-      
       - name: Generate Documentation
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: ${{ steps.config.outputs.deployment }}
+          azure-openai-deployment: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
           mode: both
           docs-folder: docs/azure
           include-architecture-diagram: true

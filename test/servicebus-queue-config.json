@@ -1,0 +1,84 @@
+{
+  "queueName": "order-processing-queue",
+  "properties": {
+    "lockDuration": "PT5M",
+    "maxSizeInMegabytes": 5120,
+    "requiresDuplicateDetection": true,
+    "requiresSession": false,
+    "defaultMessageTimeToLive": "P14D",
+    "deadLetteringOnMessageExpiration": true,
+    "duplicateDetectionHistoryTimeWindow": "PT10M",
+    "maxDeliveryCount": 10,
+    "enableBatchedOperations": true,
+    "autoDeleteOnIdle": "P30D",
+    "enablePartitioning": true,
+    "enableExpress": false
+  },
+  "authorizationRules": [
+    {
+      "name": "SendPolicy",
+      "rights": ["Send"]
+    },
+    {
+      "name": "ListenPolicy",
+      "rights": ["Listen"]
+    },
+    {
+      "name": "ManagePolicy",
+      "rights": ["Send", "Listen", "Manage"]
+    }
+  ],
+  "subscriptions": [
+    {
+      "name": "order-processor-subscription",
+      "properties": {
+        "lockDuration": "PT5M",
+        "requiresSession": false,
+        "defaultMessageTimeToLive": "P14D",
+        "deadLetteringOnMessageExpiration": true,
+        "maxDeliveryCount": 10,
+        "enableBatchedOperations": true,
+        "autoDeleteOnIdle": "P30D"
+      },
+      "filters": [
+        {
+          "filterType": "SqlFilter",
+          "sqlExpression": "priority = 'high' OR amount > 1000"
+        }
+      ]
+    }
+  ],
+  "monitoring": {
+    "enableMetrics": true,
+    "metricsRetentionDays": 30,
+    "diagnosticSettings": {
+      "workspaceId": "/subscriptions/{subscription-id}/resourceGroups/monitoring-rg/providers/Microsoft.OperationalInsights/workspaces/central-logs",
+      "logs": [
+        {
+          "category": "OperationalLogs",
+          "enabled": true,
+          "retentionPolicy": {
+            "enabled": true,
+            "days": 30
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "category": "AllMetrics",
+          "enabled": true,
+          "retentionPolicy": {
+            "enabled": true,
+            "days": 30
+          }
+        }
+      ]
+    }
+  },
+  "tags": {
+    "environment": "production",
+    "costCenter": "order-processing",
+    "owner": "platform-team",
+    "criticality": "high"
+  }
+}

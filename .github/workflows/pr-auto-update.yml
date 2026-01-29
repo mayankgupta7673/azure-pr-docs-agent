@@ -1,20 +1,22 @@
-name: Weekly Azure Audit
+name: PR Auto-Updater
 
 on:
-  schedule:
-    - cron: '0 0 * * 0'  # Every Sunday at midnight
-  workflow_dispatch:  # Allow manual trigger
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  audit:
+  update-docs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
       
       - uses: ./
         with:
@@ -22,3 +24,6 @@ jobs:
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           azure-openai-deployment: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+          auto-update-pr: true
+          create-pr-comment: true
+          mode: pr

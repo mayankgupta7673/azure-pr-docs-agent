@@ -14,6 +14,7 @@ Enterprise-ready GitHub Action that automatically documents Azure integration ch
 - 📊 **Flexible** - Per-PR, centralized, or both documentation modes
 - 🔒 **Enterprise Secure** - Keeps data in your Azure tenant
 - 🏢 **Compliance Ready** - Supports HIPAA, SOC 2, and other standards
+- 🔄 **PR Auto-Updater** - Automatically updates documentation when commits are pushed
 
 ## 🚀 Quick Start
 
@@ -23,7 +24,7 @@ Enterprise-ready GitHub Action that automatically documents Azure integration ch
 2. **Deploy a model** in Azure OpenAI Studio:
    - Go to **Deployments** → Create new deployment
    - Choose: **GPT-4** or **GPT-3.5-Turbo**
-   - Name it: `gpt-4-docs` (remember this!)
+   - Name it: `gpt-4o` (remember this!)
 3. **Get credentials**:
    - Go to **Keys and Endpoint**
    - Copy **KEY 1** and **Endpoint URL**
@@ -33,11 +34,6 @@ Enterprise-ready GitHub Action that automatically documents Azure integration ch
 Format:
 ```
 https://<resource-name>.openai.azure.com/openai/deployments/<deployment-name>/chat/completions?api-version=2024-02-15-preview
-```
-
-Example:
-```
-https://my-company-openai.openai.azure.com/openai/deployments/gpt-4-docs/chat/completions?api-version=2024-02-15-preview
 ```
 
 ### 3. Add GitHub Secrets
@@ -76,7 +72,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: gpt-4-docs
+          azure-openai-deployment: gpt-4o
 ```
 
 ### 5. Done! 🎉
@@ -92,7 +88,7 @@ Create a PR with Azure file changes and documentation will be auto-generated.
 | `github-token` | GitHub token (use `secrets.GITHUB_TOKEN`) |
 | `azure-openai-key` | Azure OpenAI API key from Azure Portal |
 | `azure-openai-endpoint` | Full Azure OpenAI endpoint URL |
-| `azure-openai-deployment` | Your deployment name (e.g., `gpt-4-docs`) |
+| `azure-openai-deployment` | Your deployment name (e.g., `gpt-4o`) |
 
 ### Optional Inputs
 
@@ -117,6 +113,47 @@ Create a PR with Azure file changes and documentation will be auto-generated.
 
 ## 📖 Usage Examples
 
+### PR Auto-Updater (Recommended)
+
+Automatically keeps documentation up-to-date as commits are pushed:
+
+```yaml
+name: PR Auto-Updater
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: mayankgupta7673/azure-integration-doc-agent@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
+          azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          azure-openai-deployment: gpt-4o
+          auto-update-pr: true          # Updates existing comments
+          create-pr-comment: true        # Shows documentation in PR
+          mode: pr
+```
+
+**Features:**
+- ✅ Updates same comment instead of creating new ones
+- ✅ Shows timestamp of last update
+- ✅ Prevents infinite loops with `[skip ci]` detection
+- ✅ Adds "🔄 Updated" badge when documentation is refreshed
+
 ### Basic Usage
 
 ```yaml
@@ -125,7 +162,22 @@ Create a PR with Azure file changes and documentation will be auto-generated.
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
+```
+
+### With PR Title Updates
+
+Optionally add `[docs updated]` tag to PR titles:
+
+```yaml
+- uses: mayankgupta7673/azure-integration-doc-agent@v1
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
+    azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+    azure-openai-deployment: gpt-4o
+    auto-update-pr: true
+    update-pr-title: true     # Adds [docs updated] to title
 ```
 
 ### Centralized Documentation
@@ -136,7 +188,7 @@ Create a PR with Azure file changes and documentation will be auto-generated.
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
     mode: centralized
     central-doc-file: AZURE_CHANGELOG.md
 ```
@@ -162,7 +214,7 @@ Create a PR with Azure file changes and documentation will be auto-generated.
     github-token: ${{ secrets.GITHUB_TOKEN }}
     azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
     azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-    azure-openai-deployment: gpt-4-docs
+    azure-openai-deployment: gpt-4o
     file-patterns: '**/*.bicep,**/infrastructure/**/*.json,**/workflows/**/*.json'
 ```
 
@@ -188,7 +240,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           azure-openai-key: ${{ secrets.AZURE_OPENAI_KEY }}
           azure-openai-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          azure-openai-deployment: gpt-4-docs
+          azure-openai-deployment: gpt-4o
 ```
 
 ### Multi-Environment Setup
@@ -311,5 +363,3 @@ MIT License - see [LICENSE](LICENSE)
 - [Report Issues](https://github.com/mayankgupta7673/azure-integration-doc-agent/issues)
 
 ---
-
-Made with 🔷 for Azure teams
